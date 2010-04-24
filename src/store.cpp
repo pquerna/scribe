@@ -51,6 +51,49 @@ ConnPool g_connPool;
 
 const string meta_logfile_prefix = "scribe_meta<new_logfile>: ";
 
+class slock {
+private:
+  pthread_mutex_t& m_mtx;
+public:
+  slock(pthread_mutex_t &mtx): m_mtx(mtx) {
+    pthread_mutex_lock(&m_mtx);
+  };
+
+  ~slock() {
+    pthread_mutex_unlock(&m_mtx);
+  };
+};
+
+struct StoreRegistry {
+  struct StoreRegistryEntry {
+    store_create_fn_t *fn;
+    void *baton;
+  };
+
+  pthread_mutex_t regMutex;
+
+  map<string,StoreRegistryEntry> registry;
+
+  StoreRegistry() {
+    pthread_mutex_init(&regMutex, NULL);
+  }
+
+  ~StoreRegistry() {
+    pthread_mutex_destroy(&regMutex);
+  }
+};
+
+static StoreRegistry *store_registry = new StoreRegistry();
+
+void
+Store::registerStore(string& type, store_create_fn_t* fn, void *baton) {
+  slock l(store_registry->regMutex);
+  StoreRegistry::StoreRegistryEntry sre;
+  sre.fn = fn;
+  sre.baton = baton;
+  store_registry->registry.insert(pair<string,StoreRegistry::StoreRegistryEntry>(type, sre));
+}
+
 boost::shared_ptr<Store>
 Store::createStore(const string& type, const string& category,
                    bool readable, bool multi_category) {
@@ -75,7 +118,17 @@ Store::createStore(const string& type, const string& category,
   } else if (0 == type.compare("thriftmultifile")) {
     return shared_ptr<Store>(new ThriftMultiFileStore(category, multi_category));
   } else {
-    return shared_ptr<Store>();
+    map<string,StoreRegistry::StoreRegistryEntry>::iterator it;
+    slock l(store_registry->regMutex);
+    it = store_registry->registry.find(type);
+    if (it != store_registry->registry.end()) {
+      store_create_fn_t *fn = it->second.fn;
+      void *baton = it->second.baton;
+      return shared_ptr<Store>( fn(baton, category, readable, multi_category));
+    }
+    else {
+      return shared_ptr<Store>();
+    }
   }
 }
 

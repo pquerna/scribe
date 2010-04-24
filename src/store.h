@@ -39,6 +39,9 @@ enum roll_period_t {
   ROLL_OTHER
 };
 
+class Store;
+typedef Store* (store_create_fn_t)(void *baton, const std::string& category,
+                                   bool readable, bool multi_category);
 
 /*
  * Abstract class to define the interface for a store
@@ -47,6 +50,8 @@ enum roll_period_t {
 class Store {
  public:
   // Creates an object of the appropriate subclass.
+  static void registerStore(std::string& type, store_create_fn_t* fn, void *baton);
+
   static boost::shared_ptr<Store>
     createStore(const std::string& type, const std::string& category,
                 bool readable = false, bool multi_category = false);
