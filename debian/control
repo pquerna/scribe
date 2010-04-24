@@ -1,0 +1,34 @@
+Source: scribe
+Section: devel
+Priority: extra
+Build-Depends: thrift-compiler, python-thrift, libthrift-dev, python-fb303, libfb303-dev
+Maintainer: Paul Querna <pquerna@apache.org>
+Standards-Version: 3.7.2
+XS-Python-Version: 2.6
+
+Package: scribe
+Architecture: any
+Section: server
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Scribe is a server for aggregating log data streamed in real time from a 
+ large number of servers. 
+ .
+ It is designed to be scalable, extensible without client-side modification, and 
+ robust to failure of the network or any specific machine. 
+ .
+ This package contains the server program.
+
+Package: libscribe-dev
+Architecture: any
+Section: libdevel
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: This is a client library for Scribe
+
+Package: python-scribe
+Architecture: any
+Section: python
+Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}
+Provides: ${python:Provides}
+Description: Python bindings for Scribe
+ .
+ This package provides the thrift interfaces for Scribe in Python

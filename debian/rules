@@ -1,0 +1,91 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+# Sample debian/rules that uses debhelper.
+#
+# This file was originally written by Joey Hess and Craig Small.
+# As a special exception, when this file is copied by dh-make into a
+# dh-make output file, you may use that output file without restriction.
+# This special exception was added by Craig Small in version 0.37 of dh-make.
+#
+# Modified to make a template file for a multi-binary package with separated
+# build-arch and build-indep targets  by Bill Allombert 2001
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+# This has to be exported to make some magic below work.
+export DH_OPTIONS
+
+PYVERS := $(shell pyversions -r)
+
+configure: configure-stamp
+configure-stamp:
+	dh_testdir
+	# Add here commands to configure the package.
+	$(CURDIR)/bootstrap.sh
+	$(CURDIR)/configure --prefix=/usr --with-thriftpath=/usr --with-fb303path=/usr
+
+	touch configure-stamp
+
+
+#Architecture
+build: build-arch
+	# Tests disabled
+	# $(MAKE) -C test check
+
+build-arch: build-arch-stamp
+build-arch-stamp: configure-stamp
+
+	$(MAKE) -C $(CURDIR)
+
+	touch $@
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f build-arch-stamp build-indep-stamp configure-stamp
+
+	# Add here commands to clean up after the build process.
+	-$(MAKE) clean
+
+	dh_clean
+
+install: install-arch
+install-arch:
+	dh_testdir
+	dh_testroot
+	dh_clean -k -s
+	dh_installdirs -s
+	-$(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
+	-mkdir -p $(CURDIR)/debian/tmp/usr/include/thrift/scribe
+	-cp $(CURDIR)/src/gen-cpp/*.h $(CURDIR)/debian/tmp/usr/include/thrift/scribe
+	dh_install --sourcedir=debian/tmp  --list-missing
+	
+# Must not depend on anything. This is to be called by
+# binary-arch/binary-indep
+# in another 'make' thread.
+binary-common:
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs
+	dh_installdocs
+	dh_installexamples
+	dh_installman
+	dh_link
+	dh_compress
+	dh_fixperms
+	dh_pysupport
+	dh_makeshlibs
+	dh_installdeb
+	dh_perl
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+# Build architecture dependant packages using the common target.
+binary-arch: build-arch install-arch
+	$(MAKE) -f debian/rules DH_OPTIONS=-s binary-common
+
+binary: binary-arch 
+.PHONY: build clean binary-indep binary-arch binary install install-indep install-arch configure
