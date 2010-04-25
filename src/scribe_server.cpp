@@ -22,7 +22,10 @@
 // @author Anthony Giardullo
 
 #include "common.h"
+#include <algorithm>
 #include "scribe_server.h"
+#include "scribe_module.h"
+#include <dlfcn.h>
 
 using namespace apache::thrift;
 using namespace apache::thrift::protocol;
@@ -35,6 +38,7 @@ using namespace facebook::fb303;
 using namespace scribe::thrift;
 using namespace std;
 using boost::shared_ptr;
+namespace fs = boost::filesystem;
 
 shared_ptr<scribeHandler> g_Handler;
 
@@ -528,6 +532,69 @@ void scribeHandler::reinitialize() {
   initialize();
 }
 
+void scribeHandler::loadModule(const string& modpath) {
+  void *handle;
+  void *symbol;
+  scribe_module_t *smod;
+  int flags = RTLD_NOW | RTLD_GLOBAL;
+
+  handle = dlopen(modpath.c_str(), flags);
+
+  if (handle == NULL) {
+    int err = errno;
+    const char *serr = strerror(err);
+    LOG_OPER("Failed to dlopen %s: (%d) %s ", modpath.c_str(), err, serr);
+    return;
+  }
+
+  /* TODO: fixme on non-/ filesystems */
+  string modname = modpath.substr(modpath.rfind("/"));
+  modname = modname.substr(0, modname.length() - 3);
+  modname += "_module";
+
+  symbol = dlsym(handle, modname.c_str());
+
+  if (symbol == NULL) {
+    const char *derr = dlerror();
+    LOG_OPER("Failed to dlsym %s @ %s: %s ", modpath.c_str(), modname.c_str(), derr);
+    return;
+  }
+
+  fprintf(stderr, "Loaded module : %s\n", modpath.c_str());
+
+  smod = (scribe_module_t*) symbol;
+
+  smod->register_func(smod, this);
+
+  /* TODO: insert into vector, cleanup on shutdown. */
+}
+
+void scribeHandler::loadModules(string& path) {
+  fs::path full_path = fs::system_complete(fs::path( path ));
+
+  if (!fs::exists(full_path)) {
+    LOG_OPER("%s does not exist", path.c_str());
+    throw runtime_error("Invalid Module path, does not exist");
+  }
+
+  if (!fs::is_directory(full_path)) {
+    LOG_OPER("%s is not a directory", path.c_str());
+    throw runtime_error("Invalid Module path, not a directory.");
+  }
+
+  fs::directory_iterator end_iter;
+  for (fs::directory_iterator dir_itr( full_path );
+       dir_itr != end_iter;
+       ++dir_itr)
+  {
+    string ext = dir_itr->path().extension();
+    /* This is perhaps, less than ideal. */
+    if (ext.compare(".so")) {
+      loadModule(dir_itr->path().string());
+    }
+  }
+}
+
 void scribeHandler::initialize() {
 
   // This clears out the error state, grep for setStatus below for details
@@ -562,6 +629,11 @@ void scribeHandler::initialize() {
     config.getUnsigned("max_msg_per_second", maxMsgPerSecond);
     config.getUnsigned("max_queue_size", maxQueueSize);
     config.getUnsigned("check_interval", checkPeriod);
+
+    string mpath;
+    if (config.getString("module_path", mpath)) {
+      loadModules(mpath);
+    }
 
     // If new_thread_per_category, then we will create a new thread/StoreQueue
     // for every unique message category seen.  Otherwise, we will just create
