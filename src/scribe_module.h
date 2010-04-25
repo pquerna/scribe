@@ -47,7 +47,7 @@ typedef struct scribe_module_t {
 #define SCRIBE_MODULE_DECL(modname, regfunc) \
   scribe_module_t modname ## _module =  \
   {                                     \
-    PWT_STANDARD_MODULE_STUFF,          \
+    SCRIBE_STANDARD_MODULE_STUFF,       \
     regfunc                             \
   };
 
