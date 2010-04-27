@@ -26,6 +26,7 @@
 
 #include "store.h"
 #include "store_queue.h"
+#include "scribe_module.h"
 
 typedef std::vector<boost::shared_ptr<StoreQueue> > store_list_t;
 typedef std::map<std::string, boost::shared_ptr<store_list_t> > category_map_t;
@@ -81,6 +82,7 @@ class scribeHandler : virtual public scribe::thrift::scribeIf,
   unsigned long maxMsgPerSecond;
   unsigned long maxQueueSize;
   bool newThreadPerCategory;
+  std::vector<scribe_module_t*> modules;
 
   /* mutex to syncronize access to scribeHandler.
    * A single mutex is fine since it only needs to be locked in write mode

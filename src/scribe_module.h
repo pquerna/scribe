@@ -39,8 +39,9 @@ typedef struct scribe_module_t {
   void *dso_handle;
   
   /** __FILE__ from the module */
-  const char *name;
-  
+  const char *file;
+
+  const char *modname;
   void (*register_func) (scribe_module_t *module, scribeHandler *scribe);
 } scribe_module_t;
 
@@ -48,6 +49,7 @@ typedef struct scribe_module_t {
   scribe_module_t modname ## _module =  \
   {                                     \
     SCRIBE_STANDARD_MODULE_STUFF,       \
+    # modname ,                         \
     regfunc                             \
   };
 

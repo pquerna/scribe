@@ -541,14 +541,13 @@ void scribeHandler::loadModule(const string& modpath) {
   handle = dlopen(modpath.c_str(), flags);
 
   if (handle == NULL) {
-    int err = errno;
-    const char *serr = strerror(err);
-    LOG_OPER("Failed to dlopen %s: (%d) %s ", modpath.c_str(), err, serr);
+    const char *derr = dlerror();
+    LOG_OPER("Failed to dlopen %s: %s", modpath.c_str(), derr);
     return;
   }
 
   /* TODO: fixme on non-/ filesystems */
-  string modname = modpath.substr(modpath.rfind("/"));
+  string modname = modpath.substr(modpath.rfind("/")+1);
   modname = modname.substr(0, modname.length() - 3);
   modname += "_module";
 
@@ -560,13 +559,11 @@ void scribeHandler::loadModule(const string& modpath) {
     return;
   }
 
-  fprintf(stderr, "Loaded module : %s\n", modpath.c_str());
-
   smod = (scribe_module_t*) symbol;
 
   smod->register_func(smod, this);
 
-  /* TODO: insert into vector, cleanup on shutdown. */
+  modules.push_back(smod);
 }
 
 void scribeHandler::loadModules(string& path) {
@@ -589,7 +586,7 @@ void scribeHandler::loadModules(string& path) {
   {
     string ext = dir_itr->path().extension();
     /* This is perhaps, less than ideal. */
-    if (ext.compare(".so")) {
+    if (0 == ext.compare(".so")) {
       loadModule(dir_itr->path().string());
     }
   }
@@ -632,7 +629,15 @@ void scribeHandler::initialize() {
 
     string mpath;
     if (config.getString("module_path", mpath)) {
+      LOG_OPER("Loading modules from %s/*.so", mpath.c_str())
       loadModules(mpath);
+      for (vector<scribe_module_t*>::iterator it = modules.begin();
+           it != modules.end();
+           it++)
+      {
+        LOG_OPER("Loaded Module: %s",
+                 (*it)->modname);
+      }
     }
 
     // If new_thread_per_category, then we will create a new thread/StoreQueue
