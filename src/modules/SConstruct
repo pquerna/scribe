@@ -1,0 +1,39 @@
+import subprocess
+from os.path import join as pjoin
+
+EnsureSConsVersion(1, 1, 0)
+
+
+opts = Variables('build.py')
+
+env = Environment(options=opts)
+
+env.AppendUnique(
+  CPPPATH = [
+    '..',
+    '../..',
+    '/usr/local/thrift/current/include',
+    '/usr/local/thrift/current/include/thrift',
+    '/usr/local/fb303/0.2.0/include/thrift',
+    '/usr/local/fb303/0.2.0/include/thrift/fb303',
+    '/usr/local/include',
+    '/opt/local/include',
+  ],
+  CPPDEFINES = [
+    'HAVE_BOOST',
+    'HAVE_BOOST_SYSTEM',
+    'HAVE_BOOST_FILESYSTEM',
+  ],
+  CPPFLAGS = ['-Wall'])
+
+if env['PLATFORM'] == 'darwin':
+    env.AppendUnique(LINKFLAGS = ['-undefined', 'dynamic_lookup'])
+
+modsources = Split("""stdout.cpp""")
+
+module = env.LoadableModule(target = "stdout.so", source = [modsources], SHLIBPREFIX='')
+
+targets = [module]
+
+env.Default(targets)
+
