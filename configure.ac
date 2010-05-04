@@ -64,7 +64,7 @@ AX_BOOST_BASE([1.36])
 AX_BOOST_SYSTEM
 AX_BOOST_FILESYSTEM
 
-AC_CHECK_LIB([dl],[dlopen], [LDFLAGS="$LDFLAGS -ldl"], [])
+AC_CHECK_LIB([dl],[dlopen], [LDFLAGS="$LDFLAGS -ldl -rdynamic"], [])
 
 # Generates Makefile from Makefile.am. Modify when new subdirs are added.
 # Change Makefile.am also to add subdirectly.
